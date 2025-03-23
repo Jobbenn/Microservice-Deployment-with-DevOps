@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board with News</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        
+
+        <div class="kanban-board">
+            <h2>Kanban Board</h2>
+            <div class="kanban-sections">
+                <div class="kanban-section">
+                    <h3>To Do</h3>
+                    <ul>
+                        {% for task in tasks['ToDo'] %}
+                        <li>{{ task }}
+                            <form method="POST" action="/move_task">
+                                <input type="hidden" name="task" value="{{ task }}">
+                                <input type="hidden" name="current_section" value="ToDo">
+                                <input type="hidden" name="next_section" value="InProgress">
+                                <button type="submit">Move to In Progress</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="kanban-section">
+                    <h3>In Progress</h3>
+                    <ul>
+                        {% for task in tasks['InProgress'] %}
+                        <li>{{ task }}
+                            <form method="POST" action="/move_task">
+                                <input type="hidden" name="task" value="{{ task }}">
+                                <input type="hidden" name="current_section" value="InProgress">
+                                <input type="hidden" name="next_section" value="Completed">
+                                <button type="submit">Move to Completed</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="kanban-section">
+                    <h3>Completed</h3>
+                    <ul>
+                        {% for task in tasks['Completed'] %}
+                        <li>{{ task }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <form method="POST" action="/add_task">
+                <input type="text" name="task" placeholder="Add new task" required>
+                <button type="submit">Add Task</button>
+            </form>
+        </div>
+
+        <div class="news-section">
+            <h2>Latest News</h2>
+            {% for article in articles %}
+            <div class="news-item">
+                <img src="{{ article['urlToImage'] }}" alt="News Image">
+                <p><a href="{{ article['url'] }}" target="_blank">{{ article['title'] }}</a></p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+</html>
