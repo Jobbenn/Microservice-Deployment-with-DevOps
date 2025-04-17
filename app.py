@@ -1,49 +1,34 @@
-from flask import Flask, render_template, request, redirect, url_for
-import requests
-from pymongo import MongoClient
+from flask import Flask
+from flask_login import LoginManager
+from models import mongo, get_user_by_email
+from news import news_bp
+from kanban import kanban_bp
+from auth import auth_bp
 
 app = Flask(__name__)
+app.secret_key = 'supersecretdevkey123'
 
-NEWS_API_KEY = "42a144afe912471d84a88d42f718c10b"
-NEWS_URL = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={NEWS_API_KEY}"
+# ✅ Set this BEFORE initializing mongo
+app.config['MONGO_URI'] = 'mongodb://localhost:27017/devsecops'
+app.config['NEWS_API_KEY'] = '42a144afe912471d84a88d42f718c10b'
 
-# MongoDB Connection
-client = MongoClient("mongodb://localhost:27017/")
-db = client.kanban_db
-kanban_collection = db.tasks
+# ✅ Init mongo after config is set
+mongo.init_app(app)
 
-@app.route("/")
-def index():
-    news_response = requests.get(NEWS_URL).json()
-    articles = news_response.get("articles", [])[:5]  # Get top 5 news articles
+# ✅ Flask-Login setup
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.init_app(app)
+from models import get_user_by_id
 
-    # Fetch tasks from MongoDB
-    tasks = {"ToDo": [], "InProgress": [], "Completed": []}
-    for task in kanban_collection.find():
-        tasks[task["section"].strip()].append(task["task"])
+@login_manager.user_loader
+def load_user(user_id):
+    return get_user_by_id(user_id)
 
-    return render_template("index.html", tasks=tasks, articles=articles)
+# ✅ Register blueprints
+app.register_blueprint(news_bp)
+app.register_blueprint(kanban_bp)
+app.register_blueprint(auth_bp, url_prefix='/auth')
 
-@app.route("/add_task", methods=["POST"])
-def add_task():
-    task = request.form.get("task")
-    if task:
-        kanban_collection.insert_one({"task": task, "section": "ToDo"})
-    return redirect(url_for("index"))
-
-@app.route("/move_task", methods=["POST"])
-def move_task():
-    task = request.form.get("task")
-    current_section = request.form.get("current_section")
-    next_section = request.form.get("next_section")
-
-    if task and current_section and next_section:
-        kanban_collection.update_one(
-            {"task": task, "section": current_section},
-            {"$set": {"section": next_section}}
-        )
-
-    return redirect(url_for("index"))
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
