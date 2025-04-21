@@ -1,78 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Board with News</title>
+    <title>Kanban Board + News</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-
-<body>
+<body id="page-body" class="dark-theme">
     <div class="container">
-        
+
+        <div class="header">
+            <h1>Welcome, {{ current_user.email }}</h1>
+            <div>
+                <label class="switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <a href="{{ url_for('auth.logout') }}" style="margin-left: 10px;">Logout</a>
+            </div>
+        </div>
 
         <div class="kanban-board">
             <h2>Kanban Board</h2>
             <div class="kanban-sections">
+                {% for section in ['todo', 'in_progress', 'completed'] %}
                 <div class="kanban-section">
-                    <h3>To Do</h3>
+                    <h3>{{ section.replace('_', ' ').title() }}</h3>
                     <ul>
-                        {% for task in tasks['ToDo'] %}
-                        <li>{{ task }}
-                            <form method="POST" action="/move_task">
-                                <input type="hidden" name="task" value="{{ task }}">
-                                <input type="hidden" name="current_section" value="ToDo">
-                                <input type="hidden" name="next_section" value="InProgress">
-                                <button type="submit">Move to In Progress</button>
-                            </form>
+                        {% for task in kanban[section] %}
+                        <li>
+                            {{ task }}
+                            {% if section != 'completed' %}
+                            <button onclick="moveTask('{{ task }}', '{{ section }}')">
+                                Move to {{ 'in_progress' if section == 'todo' else 'completed' | capitalize }}
+                            </button>
+                            {% endif %}
                         </li>
                         {% endfor %}
                     </ul>
                 </div>
-
-                <div class="kanban-section">
-                    <h3>In Progress</h3>
-                    <ul>
-                        {% for task in tasks['InProgress'] %}
-                        <li>{{ task }}
-                            <form method="POST" action="/move_task">
-                                <input type="hidden" name="task" value="{{ task }}">
-                                <input type="hidden" name="current_section" value="InProgress">
-                                <input type="hidden" name="next_section" value="Completed">
-                                <button type="submit">Move to Completed</button>
-                            </form>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-
-                <div class="kanban-section">
-                    <h3>Completed</h3>
-                    <ul>
-                        {% for task in tasks['Completed'] %}
-                        <li>{{ task }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                {% endfor %}
             </div>
 
-            <form method="POST" action="/add_task">
-                <input type="text" name="task" placeholder="Add new task" required>
+            <form id="add-task-form">
+                <input type="text" id="new-task" placeholder="Add new task" required>
                 <button type="submit">Add Task</button>
             </form>
         </div>
 
         <div class="news-section">
             <h2>Latest News</h2>
-            {% for article in articles %}
+            {% for article in news %}
             <div class="news-item">
-                <img src="{{ article['urlToImage'] }}" alt="News Image">
+                {% if article['urlToImage'] %}
+                <img src="{{ article['urlToImage'] }}" alt="News Image" width="100%">
+                {% endif %}
                 <p><a href="{{ article['url'] }}" target="_blank">{{ article['title'] }}</a></p>
             </div>
             {% endfor %}
         </div>
     </div>
-</body>
 
+    <script>
+        // Add task handler
+        document.getElementById('add-task-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const task = document.getElementById('new-task').value;
+            const res = await fetch('/add_task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task })
+            });
+            if (res.ok) location.reload();
+        });
+
+        // Move task handler
+        async function moveTask(task, fromSection) {
+            const toSection = fromSection === 'todo' ? 'in_progress' : 'completed';
+            const res = await fetch('/move_task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task, from: fromSection, to: toSection })
+            });
+            if (res.ok) location.reload();
+        }
+
+        // Theme toggle logic
+        const toggle = document.getElementById('theme-toggle');
+        const body = document.getElementById('page-body');
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            toggle.checked = true;
+            body.classList.remove('dark-theme');
+            body.classList.add('light-theme');
+        }
+
+        toggle.addEventListener('change', () => {
+            if (toggle.checked) {
+                body.classList.remove('dark-theme');
+                body.classList.add('light-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.classList.remove('light-theme');
+                body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    </script>
+</body>
 </html>
